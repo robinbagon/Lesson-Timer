@@ -1,0 +1,509 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover" />
+<title>Lesson Timer (Week 1 / Week 2)</title>
+<style>
+  :root{
+    --bg:#0b1220;
+    --panel:#0f1724;
+    --accent:#ffd166;
+    --muted:#9aa6b2;
+    --white:#ffffff;
+  }
+  html,body{
+    height:100%;
+    margin:0;
+    background:linear-gradient(180deg,#071022 0%, #0b1220 100%);
+    font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    color:var(--white);
+  }
+  /* Layout tuned for landscape iPad */
+  .app{
+    display:flex;
+    flex-direction:column;
+    height:100vh;
+    padding:12px;
+    box-sizing:border-box;
+  }
+  .topbar{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:12px;
+    margin-bottom:8px;
+  }
+  .date {
+    font-size:18px;
+    font-weight:600;
+    color:var(--muted);
+  }
+  .controls{
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .toggle {
+    background:transparent;
+    border:1px solid rgba(255,255,255,0.08);
+    padding:6px;
+    border-radius:10px;
+    display:flex;
+  }
+  .toggle button{
+    background:transparent;
+    color:var(--muted);
+    border: none;
+    padding:8px 12px;
+    font-weight:600;
+    cursor:pointer;
+    border-radius:8px;
+    font-size:15px;
+  }
+  .toggle button.active{
+    background: linear-gradient(90deg,#1f2937 0%, #0f1724 100%);
+    color:var(--accent);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.6), inset 0 -2px 6px rgba(0,0,0,0.3);
+    border:1px solid rgba(255,209,102,0.08);
+  }
+  .fullscreen-btn{
+    background:transparent;
+    border:1px solid rgba(255,255,255,0.06);
+    color:var(--muted);
+    padding:8px 10px;
+    border-radius:8px;
+    cursor:pointer;
+    font-weight:600;
+  }
+
+  .main{
+    flex:1;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:24px;
+  }
+
+  .panel{
+    background: rgba(255,255,255,0.02);
+    border-radius:14px;
+    padding:18px;
+    min-width:70%;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    box-shadow: 0 8px 30px rgba(2,6,23,0.6);
+  }
+
+  .current-lesson{
+    text-align:center;
+    margin-bottom:12px;
+  }
+  .when {
+    font-size:20px;
+    color:var(--muted);
+  }
+  .lesson-name{
+    font-size:38px;
+    font-weight:700;
+    margin-top:6px;
+    letter-spacing:0.2px;
+  }
+
+  .timer{
+    margin-top:16px;
+    font-size:120px;
+    font-weight:800;
+    line-height:0.9;
+    letter-spacing:0.02em;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  .small-info{
+    margin-top:12px;
+    color:var(--muted);
+    font-size:15px;
+  }
+
+  .footer{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    font-size:14px;
+    color:var(--muted);
+    margin-top:12px;
+  }
+
+  /* Responsive/landscape tweaks */
+  @media (max-width:900px) {
+    .timer{font-size:80px}
+    .lesson-name{font-size:28px}
+  }
+
+  /* Portrait fallback */
+  @media (orientation:portrait) {
+    .main{padding-top:12px}
+    .panel{min-width:92%}
+    .timer{font-size:72px}
+  }
+
+</style>
+</head>
+<body>
+  <div class="app" role="application" aria-label="Lesson timer">
+    <div class="topbar">
+      <div class="date" id="dateDisplay" aria-live="polite">Loading date…</div>
+      <div class="controls">
+        <div class="toggle" role="tablist" aria-label="Select week">
+          <button id="week1btn" role="tab">Week 1</button>
+          <button id="week2btn" role="tab">Week 2</button>
+        </div>
+        <button class="fullscreen-btn" id="fsBtn" title="Enter fullscreen">Fullscreen</button>
+      </div>
+    </div>
+
+    <div class="main">
+      <div class="panel" id="mainPanel">
+        <div class="current-lesson">
+          <div class="when" id="whenLine">—</div>
+          <div class="lesson-name" id="lessonName">—</div>
+        </div>
+
+        <div class="timer" id="countdown">--:--:--</div>
+
+        <div class="small-info" id="rangeLine">—</div>
+        <div class="footer">
+          <div id="nextLine">Next: —</div>
+          <div id="lastUpdated">Updated: —</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+/*
+  Timetable embedded from user's input (Week 1 and Week 2).
+  Days are Mon, Tue, Wed, Thurs, Fri.
+  Times are 24-hour strings "HH:MM".
+*/
+const TIMETABLE = {
+  "week1": {
+    "Mon": [
+      ["07:55","08:45","Free"],
+      ["08:45","09:35","Free"],
+      ["09:35","10:00","Break"],
+      ["10:00","10:50","Y5 Language"],
+      ["10:50","11:40","3W Language"],
+      ["11:40","12:00","Break"],
+      ["12:00","12:50","Y4 Literature"],
+      ["12:50","13:40","3G Language"]
+    ],
+    "Tue": [
+      ["08:00","08:50","3G Literature"],
+      ["08:50","09:40","3W Literature"],
+      ["09:40","10:00","Break"],
+      ["10:00","10:50","Free"],
+      ["10:50","11:40","Free"],
+      ["11:40","12:00","Break"],
+      ["12:00","12:50","Free"],
+      ["12:50","13:40","Y5 Literature"]
+    ],
+    "Wed": [
+      ["07:40","08:30","Free"],
+      ["08:30","09:20","Y5 Language"],
+      ["09:20","09:40","Break"],
+      ["09:40","10:30","Y4 Language"],
+      ["10:30","11:20","3G Literature"],
+      ["11:20","11:40","Break"],
+      ["11:40","12:30","Free"],
+      ["12:30","13:20","3W Literature"]
+    ],
+    "Thurs": [
+      ["07:55","08:45","Free"],
+      ["08:45","09:35","3G Language"],
+      ["09:35","10:00","Break"],
+      ["10:00","10:50","3G Literature"],
+      ["10:50","11:40","Free"],
+      ["11:40","12:00","Break"],
+      ["12:00","12:50","Y5 Language"],
+      ["12:50","13:40","Y4 Lit (unseen)"]
+    ],
+    "Fri": [
+      ["08:00","09:40","Y5 Literature"],
+      ["09:40","10:00","Break"],
+      ["10:00","10:50","Free"],
+      ["10:50","11:40","Y4 Language"],
+      ["11:40","12:00","Break"],
+      ["12:00","12:50","3W Literature"],
+      ["12:50","13:40","3G Literature"]
+    ]
+  },
+  "week2": {
+    "Mon": [
+      ["07:55","09:35","Y4 Literature"],
+      ["09:35","10:00","Break"],
+      ["10:00","10:50","Y5 Literature"],
+      ["10:50","11:40","Y6"],
+      ["11:40","12:00","Break"],
+      ["12:00","12:50","Free"],
+      ["12:50","13:40","3W Language"]
+    ],
+    "Tue": [
+      ["08:00","08:50","Y4 Language"],
+      ["08:50","09:40","3W Literature"],
+      ["09:40","10:00","Break"],
+      ["10:00","10:50","Free"],
+      ["10:50","11:40","Y5 Language"],
+      ["11:40","12:00","Break"],
+      ["12:00","12:50","Y6"],
+      ["12:50","13:40","Free"]
+    ],
+    "Wed": [
+      ["07:40","08:30","3G Language"],
+      ["08:30","09:20","Free"],
+      ["09:20","09:40","Break"],
+      ["09:40","10:30","3W Literature"],
+      ["10:30","11:20","3W Literature"],
+      ["11:20","11:40","Break"],
+      ["11:40","13:20","Y5 Literature"]
+    ],
+    "Thurs": [
+      ["07:55","08:45","Y6"],
+      ["08:45","09:35","Y6"],
+      ["09:35","10:00","Break"],
+      ["10:00","10:50","Free"],
+      ["10:50","11:40","Y5 Language"],
+      ["11:40","12:00","Break"],
+      ["12:00","13:40","Y4 Literature"]
+    ],
+    "Fri": [
+      ["08:00","08:50","Free"],
+      ["08:50","09:40","Y4 Language"],
+      ["09:40","10:00","Break"],
+      ["10:00","10:50","3G Literature"],
+      ["10:50","11:40","Free"],
+      ["11:40","12:00","Break"],
+      ["12:00","12:50","3G Language"],
+      ["12:50","13:40","3G Literature"]
+    ]
+  }
+};
+
+// Map JS getDay() to our keys
+const DAY_INDEX_TO_NAME = {
+  1: "Mon",
+  2: "Tue",
+  3: "Wed",
+  4: "Thurs",
+  5: "Fri"
+};
+
+function pad(n){ return n.toString().padStart(2,'0'); }
+
+function formatDate(d){
+  const days = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  return `${days[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+function parseTimeToDate(timeStr, referenceDate){
+  // timeStr "HH:MM"
+  const [hh,mm] = timeStr.split(':').map(s=>parseInt(s,10));
+  const dt = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), referenceDate.getDate(), hh, mm, 0, 0);
+  return dt;
+}
+
+// Get selected week from storage or default to week1
+let SELECTED_WEEK = localStorage.getItem('lessonTimerWeek') || 'week1';
+
+const week1btn = document.getElementById('week1btn');
+const week2btn = document.getElementById('week2btn');
+const dateDisplay = document.getElementById('dateDisplay');
+const lessonName = document.getElementById('lessonName');
+const whenLine = document.getElementById('whenLine');
+const countdown = document.getElementById('countdown');
+const rangeLine = document.getElementById('rangeLine');
+const nextLine = document.getElementById('nextLine');
+const lastUpdated = document.getElementById('lastUpdated');
+const fsBtn = document.getElementById('fsBtn');
+
+function updateWeekButtons(){
+  if(SELECTED_WEEK === 'week1'){
+    week1btn.classList.add('active');
+    week2btn.classList.remove('active');
+  } else {
+    week2btn.classList.add('active');
+    week1btn.classList.remove('active');
+  }
+}
+week1btn.addEventListener('click',()=>{
+  SELECTED_WEEK='week1';
+  localStorage.setItem('lessonTimerWeek','week1');
+  updateWeekButtons();
+  refreshNow();
+});
+week2btn.addEventListener('click',()=>{
+  SELECTED_WEEK='week2';
+  localStorage.setItem('lessonTimerWeek','week2');
+  updateWeekButtons();
+  refreshNow();
+});
+
+fsBtn.addEventListener('click',async()=>{
+  const el = document.documentElement;
+  if(!document.fullscreenElement){
+    try { await el.requestFullscreen(); }
+    catch(e){ /* ignore */ }
+  } else {
+    try { await document.exitFullscreen(); } catch(e){}
+  }
+});
+
+// Compute for today and possibly next days
+function findCurrentAndNext(now, weekKey){
+  const wn = TIMETABLE[weekKey];
+  const todayName = DAY_INDEX_TO_NAME[now.getDay()];
+  const result = {
+    current: null,   // {start:Date,end:Date,name,rangeStr}
+    next: null       // {start,end,name,rangeStr,daysAway}
+  };
+
+  function inspectDay(dateObj, dayName, daysAway){
+    const periods = wn[dayName] || [];
+    for(const [s,e,name] of periods){
+      const start = parseTimeToDate(s, dateObj);
+      const end = parseTimeToDate(e, dateObj);
+      if(start <= now && now < end){
+        result.current = {start,end,name,rangeStr:`${s}–${e}`,daysAway};
+      } else if (start > now){
+        if(!result.next || start < result.next.start){
+          result.next = {start,end,name,rangeStr:`${s}–${e}`,daysAway};
+        }
+      }
+    }
+  }
+
+  // Check today first, then next 7 days for next lesson
+  if(todayName) inspectDay(now, todayName, 0);
+  for(let i=0;i<7;i++){
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate()+i, 12,0,0,0);
+    const name = DAY_INDEX_TO_NAME[d.getDay()];
+    if(!name) continue;
+    inspectDay(d, name, i);
+    if(result.current && result.next) break;
+  }
+  return result;
+}
+
+function humanDaysAway(days){
+  if(days===0) return "today";
+  if(days===1) return "tomorrow";
+  return `${days} days`;
+}
+
+function updateDisplayFor(now){
+  dateDisplay.textContent = formatDate(now);
+  lastUpdated.textContent = `Updated: ${now.getHours()}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+  const info = findCurrentAndNext(now, SELECTED_WEEK);
+
+  if(info.current){
+    const cur = info.current;
+    whenLine.textContent = `Current (${humanDaysAway(cur.daysAway)})`;
+    lessonName.textContent = cur.name;
+    rangeLine.textContent = `${cur.rangeStr} — ends at ${pad(cur.end.getHours())}:${pad(cur.end.getMinutes())}`;
+    // next lesson (same or later)
+    if(info.next){
+      const n = info.next;
+      nextLine.textContent = `Next: ${n.name} (${n.rangeStr}) — ${humanDaysAway(n.daysAway)}`;
+    } else {
+      nextLine.textContent = `Next: none scheduled this week`;
+    }
+    return {mode:'in-lesson', target: cur.end, label:`Ends at ${pad(cur.end.getHours())}:${pad(cur.end.getMinutes())}`};
+  } else if(info.next){
+    const n = info.next;
+    whenLine.textContent = `Next (${humanDaysAway(n.daysAway)})`;
+    lessonName.textContent = n.name;
+    rangeLine.textContent = `${n.rangeStr} — starts at ${pad(n.start.getHours())}:${pad(n.start.getMinutes())}`;
+    nextLine.textContent = `After that: —`;
+    return {mode:'before-lesson', target: n.start, label:`Starts at ${pad(n.start.getHours())}:${pad(n.start.getMinutes())}`};
+  } else {
+    whenLine.textContent = `No lessons scheduled`;
+    lessonName.textContent = `Free / out of hours`;
+    rangeLine.textContent = `No upcoming lessons found in this timetable.`;
+    nextLine.textContent = `Next: —`;
+    return {mode:'idle', target: null};
+  }
+}
+
+function formatCountdown(diffMillis){
+  if(diffMillis < 0) diffMillis = 0;
+  let s = Math.floor(diffMillis/1000);
+  const h = Math.floor(s/3600); s = s%3600;
+  const m = Math.floor(s/60); const sec = s%60;
+  if(h>0) return `${h}:${pad(m)}:${pad(sec)}`;
+  return `${pad(m)}:${pad(sec)}`;
+}
+
+let lastState = null;
+function refreshNow(){
+  const now = new Date();
+  const state = updateDisplayFor(now);
+  lastState = state;
+  if(state.target){
+    const diff = state.target - now;
+    countdown.textContent = formatCountdown(diff);
+  } else {
+    countdown.textContent = "--:--:--";
+  }
+}
+
+// Update every 200ms for smooth seconds
+setInterval(()=>{
+  const now = new Date();
+  const state = lastState || updateDisplayFor(now);
+  if(state && state.target){
+    const diff = state.target - now;
+    countdown.textContent = formatCountdown(diff);
+  } else {
+    countdown.textContent = "--:--:--";
+  }
+  // update date/time display once a second
+  if(now.getMilliseconds() < 200) { // approx once/second
+    dateDisplay.textContent = formatDate(now);
+    lastUpdated.textContent = `Updated: ${now.getHours()}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+    // to keep things accurate, recalc current/next at least every 10 seconds
+    if(now.getSeconds() % 10 === 0) {
+      refreshNow();
+    }
+  }
+}, 200);
+
+// Initial UI setup
+updateWeekButtons();
+refreshNow();
+
+// Also refresh when tab becomes visible (in case time advanced while sleeping)
+document.addEventListener('visibilitychange', ()=>{
+  if(!document.hidden) refreshNow();
+});
+
+// Allow tapping the big timer to toggle between remaining and progress percentage
+let showMode = 0;
+countdown.addEventListener('click', ()=>{
+  // toggle: 0=remaining,1=until next lesson name (no-op) ; keep simple for teachers
+  // For now just re-run refresh to ensure synced
+  refreshNow();
+});
+
+// Suggest adding to home screen (small hint)
+(function addHint(){
+  const q = new URLSearchParams(window.location.search).get('added');
+  // no annoying prompts — keep it simple in instructions below.
+})();
+
+</script>
+</body>
+</html>
