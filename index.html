@@ -35,7 +35,7 @@
     margin-bottom:8px;
   }
   .date {
-    font-size:26px;
+    font-size:18px;
     font-weight:600;
     color:var(--muted);
   }
@@ -150,10 +150,6 @@
     .timer{font-size:72px}
   }
 
-  #lastUpdated {
-  display: none;
-}
-
 </style>
 </head>
 <body>
@@ -180,7 +176,7 @@
 
         <div class="small-info" id="rangeLine">—</div>
         <div class="footer">
-          
+          <div id="nextLine">Next: —</div>
           <div id="lastUpdated">Updated: —</div>
         </div>
       </div>
@@ -431,13 +427,13 @@ function updateDisplayFor(now){
     whenLine.textContent = `Next (${humanDaysAway(n.daysAway)})`;
     lessonName.textContent = n.name;
     rangeLine.textContent = `${n.rangeStr} — starts at ${pad(n.start.getHours())}:${pad(n.start.getMinutes())}`;
-    
+    nextLine.textContent = `After that: —`;
     return {mode:'before-lesson', target: n.start, label:`Starts at ${pad(n.start.getHours())}:${pad(n.start.getMinutes())}`};
   } else {
     whenLine.textContent = `No lessons scheduled`;
     lessonName.textContent = `Free / out of hours`;
     rangeLine.textContent = `No upcoming lessons found in this timetable.`;
-    
+    nextLine.textContent = `Next: —`;
     return {mode:'idle', target: null};
   }
 }
@@ -483,7 +479,7 @@ setInterval(()=>{
       refreshNow();
     }
   }
-}, 200);f
+}, 200);
 
 // Initial UI setup
 updateWeekButtons();
@@ -511,3 +507,4 @@ countdown.addEventListener('click', ()=>{
 </script>
 </body>
 </html>
+	
